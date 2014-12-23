@@ -13,7 +13,7 @@ var gulp = require('gulp'),
   autoprefixer = require('gulp-autoprefixer'),
   htmlmin = require('gulp-htmlmin'),
   del = require('del'),
-  hash_src = require('gulp-hash-src'),
+  hashSrc = require('gulp-hash-src'),
   useref = require('gulp-useref'),
   gulpif = require('gulp-if'),
   uglify = require('gulp-uglify'),
@@ -40,8 +40,8 @@ gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
     .pipe(plumber())
     .pipe(gulpif('*.handlebars', handlebars(templateData, templateOptions)))
     .pipe(rename({ extname: '.html' }))
-    //.pipe(htmlmin())
-    //.pipe(hash_src({ build_dir: './dist', src_path: './src' }))
+    .pipe(htmlmin())
+    .pipe(hashSrc({ build_dir: './dist', src_path: './src' }))
     .pipe(gulp.dest('./dist'));
 });
 
