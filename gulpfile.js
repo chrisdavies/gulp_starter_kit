@@ -11,16 +11,25 @@ var gulp = require('gulp'),
   autoprefixer = require('gulp-autoprefixer'),
   rename = require('gulp-rename'),
   plumber = require('gulp-plumber'),
-  connect = require('gulp-connect');
-
+  connect = require('gulp-connect'),
+  handlebars = require('gulp-compile-handlebars');
 
 // html process html files and minifies js
 gulp.task('html', ['sass'], function ()
 {
-  var assets = useref.assets();
+  var assets = useref.assets(),
+    templateData = { },
+    options = {
+      ignorePartials: true,
+      partials : { },
+      batch : ['./src/partials'],
+      helpers : { }
+    };
 
-  return gulp.src('./src/**/*.html')
+  return gulp.src(['./src/**/*.{html,handlebars}', '!./src/partials/**/*'], { base: './src' })
     .pipe(plumber())
+    .pipe(gulpif('*.handlebars', handlebars(templateData, options)))
+    .pipe(rename({ extname: '.html' }))
     .pipe(htmlmin())
     .pipe(assets)
     .pipe(gulpif('*.js', uglify()))
@@ -64,7 +73,6 @@ gulp.task('connect', function() {
 
 // default is the default grunt task
 gulp.task('default', ['connect', 'html'], function () {
-  gulp.watch('./src/**/*.html', ['html']);
-  gulp.watch('./src/**/*.js', ['html']);
+  gulp.watch('./src/**/*.{js,html,handlebars}', ['html']);
   gulp.watch('./src/**/*.scss', ['sass']);
 });
