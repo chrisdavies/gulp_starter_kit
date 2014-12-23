@@ -4,15 +4,17 @@
 
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
+  postcss = require('gulp-postcss'),
+  csswring = require('csswring'),
   sourcemaps = require('gulp-sourcemaps'),
+  minifyCss = require('gulp-minify-css'),
+  autoprefixer = require('gulp-autoprefixer'),
   htmlmin = require('gulp-htmlmin'),
   clean = require('gulp-clean'),
   hash_src = require('gulp-hash-src'),
   useref = require('gulp-useref'),
   gulpif = require('gulp-if'),
   uglify = require('gulp-uglify'),
-  minifyCss = require('gulp-minify-css'),
-  autoprefixer = require('gulp-autoprefixer'),
   rename = require('gulp-rename'),
   plumber = require('gulp-plumber'),
   connect = require('gulp-connect'),
@@ -55,20 +57,19 @@ gulp.task('html', ['sass'], function ()
 
 // sass compiles the sass files
 gulp.task('sass', function () {
-  return gulp.src('./src/scss/**/*.scss')
+  gulp.src('./src/scss/**/*.scss')
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(sass())
     .pipe(sourcemaps.write())
     .pipe(autoprefixer({
-      browsers: ['last 2 versions'],
+      browsers: ['last 5 versions'],
       cascade: false
     }))
-    .pipe(gulp.dest('./dist/css'))
-    .pipe(rename({ suffix: '.min' }))
-    .pipe(minifyCss())
-    .pipe(gulp.dest('./dist/css'))
-    .pipe(connect.reload());
+    .pipe(postcss([csswring]))
+    .pipe(sourcemaps.init({ loadMaps: true }))
+    .pipe(sourcemaps.write('.'))
+    .pipe(gulp.dest('./dist/css'));
 });
 
 // clean cleans the dist directory
