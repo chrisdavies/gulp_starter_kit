@@ -10,7 +10,7 @@ var gulp = require('gulp'),
   minifyCss = require('gulp-minify-css'),
   autoprefixer = require('gulp-autoprefixer'),
   htmlmin = require('gulp-htmlmin'),
-  clean = require('gulp-clean'),
+  del = require('del'),
   hash_src = require('gulp-hash-src'),
   useref = require('gulp-useref'),
   gulpif = require('gulp-if'),
@@ -55,7 +55,13 @@ gulp.task('html', ['sass'], function ()
     .pipe(connect.reload());
 });
 
-// sass compiles the sass files
+/*
+ sass compiles the sass/scss files.
+ It first creates an internal source map, because
+ autoprefixer and csswring don't seem to work well
+ with external source maps. Finally, we externalize
+ the source maps.
+*/
 gulp.task('sass', function () {
   gulp.src('./src/scss/**/*.scss')
     .pipe(plumber())
@@ -63,7 +69,7 @@ gulp.task('sass', function () {
     .pipe(sass())
     .pipe(sourcemaps.write())
     .pipe(autoprefixer({
-      browsers: ['last 5 versions'],
+      browsers: ['last 2 versions'],
       cascade: false
     }))
     .pipe(postcss([csswring]))
@@ -73,9 +79,8 @@ gulp.task('sass', function () {
 });
 
 // clean cleans the dist directory
-gulp.task('clean', function () {
-  return gulp.src('./dist', { read: false })
-    .pipe(clean());
+gulp.task('clean', function (cb) {
+  return del(['./dist/*'], cb);
 });
 
 gulp.task('connect', function() {
@@ -86,7 +91,7 @@ gulp.task('connect', function() {
 });
 
 // default is the default grunt task
-gulp.task('default', ['connect', 'html'], function () {
+gulp.task('default', ['clean', 'connect', 'html'], function () {
   gulp.watch('./src/**/*.{js,html,handlebars}', ['html']);
   gulp.watch('./src/**/*.scss', ['sass']);
 });
