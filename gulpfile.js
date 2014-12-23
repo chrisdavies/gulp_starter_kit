@@ -1,3 +1,7 @@
+/*
+  Imports
+*/
+
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
   sourcemaps = require('gulp-sourcemaps'),
@@ -14,6 +18,12 @@ var gulp = require('gulp'),
   connect = require('gulp-connect'),
   handlebars = require('gulp-compile-handlebars');
 
+/*
+  Delete ./dist
+  Build to ./dist
+  Reload in browser
+*/
+
 // html process html files and minifies js
 gulp.task('html', ['sass'], function ()
 {
@@ -27,15 +37,18 @@ gulp.task('html', ['sass'], function ()
     };
 
   return gulp.src(['./src/**/*.{html,handlebars}', '!./src/partials/**/*'], { base: './src' })
-    .pipe(plumber())
+    //.pipe(plumber())
     .pipe(gulpif('*.handlebars', handlebars(templateData, options)))
     .pipe(rename({ extname: '.html' }))
     .pipe(htmlmin())
     .pipe(assets)
-    .pipe(gulpif('*.js', uglify()))
+    // .pipe(gulpif('*.js', uglify({
+    //   sourceMap: true,
+    //   sourceMapName: 'dist/<%= pkg.name %>-<%= pkg.version %>.map'
+    // })))
     .pipe(assets.restore())
     .pipe(useref())
-    .pipe(hash_src({ build_dir: './dist', src_path: './src' }))
+    //.pipe(hash_src({ build_dir: './dist', src_path: './src' }))
     .pipe(gulp.dest('./dist'))
     .pipe(connect.reload());
 });
@@ -46,11 +59,11 @@ gulp.task('sass', function () {
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(sass())
+    .pipe(sourcemaps.write())
     .pipe(autoprefixer({
       browsers: ['last 2 versions'],
       cascade: false
     }))
-    .pipe(sourcemaps.write())
     .pipe(gulp.dest('./dist/css'))
     .pipe(rename({ suffix: '.min' }))
     .pipe(minifyCss())
