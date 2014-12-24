@@ -42,7 +42,8 @@ gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
     .pipe(rename({ extname: '.html' }))
     .pipe(htmlmin())
     .pipe(hashSrc({ build_dir: './dist', src_path: './src' }))
-    .pipe(gulp.dest('./dist'));
+    .pipe(gulp.dest('./dist'))
+    .pipe(connect.reload());
 });
 
 /*
@@ -76,7 +77,7 @@ gulp.task('appjs', function () {
  the source maps.
 */
 gulp.task('sass', function () {
-  gulp.src('./src/scss/**/*.scss')
+  return gulp.src('./src/scss/**/*.scss')
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(sass())
@@ -96,6 +97,10 @@ gulp.task('clean', function (cb) {
   return del(['./dist/*'], cb);
 });
 
+gulp.task('build', ['clean'], function () {
+  gulp.start('html', 'connect');
+});
+
 // connect sets up the server/live reload shtuffs
 gulp.task('connect', function() {
   return connect.server({
@@ -104,13 +109,20 @@ gulp.task('connect', function() {
   });
 });
 
-// refreshbrowser tells connect to refresh all connected browsers
-gulp.task('refreshbrowser', function () {
-  connect.reload();
+// reload sass
+gulp.task('reloadsass', ['sass'], function() {
+  gulp.src('./src')
+    .pipe(connect.reload());
+});
+
+// reload html/js
+gulp.task('reloadhtml', ['html'], function() {
+  gulp.src('./src')
+    .pipe(connect.reload());
 });
 
 // default is what runs when you just type "grunt" with no params
-gulp.task('default', ['clean', 'connect', 'html'], function () {
-  gulp.watch('./src/**/*.{js,html,handlebars}', ['html', 'refreshbrowser']);
-  gulp.watch('./src/**/*.scss', ['sass', 'refreshbrowser']);
+gulp.task('default', ['build'], function () {
+  gulp.watch('./src/**/*.{js,html,handlebars}', ['reloadhtml']);
+  gulp.watch('./src/**/*.scss', ['reloadsass']);
 });
