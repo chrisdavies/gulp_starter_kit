@@ -1,7 +1,20 @@
 /*
+  Options/parameters
+*/
+var paths = (function () {
+  var src = './src',
+    dest = './dist';
+
+  return {
+    src: src,
+    dest: dest,
+    partials: src + '/partials'
+  }
+})();
+
+/*
   Imports
 */
-
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
   postcss = require('gulp-postcss'),
@@ -23,6 +36,14 @@ var gulp = require('gulp'),
   handlebars = require('gulp-compile-handlebars');
 
 /*
+  Helper functions
+*/
+function refreshBrowser () {
+  gulp.src(paths.src)
+    .pipe(connect.reload());
+}
+
+/*
   html process html/handlebars files, concats, minifies js,
   and hashes the src/href attribute values
 */
@@ -32,17 +53,17 @@ gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
     templateOptions = {
       ignorePartials: true,
       partials : { },
-      batch : ['./src/partials'],
+      batch : [paths.partials],
       helpers : { }
     };
 
-  return gulp.src(['./src/**/*.{html,handlebars}', '!./src/partials/**/*'], { base: './src' })
+  return gulp.src([paths.src + '/**/*.{html,handlebars}', '!' + paths.src + '/partials/**/*'], { base: paths.src })
     .pipe(plumber())
     .pipe(gulpif('*.handlebars', handlebars(templateData, templateOptions)))
     .pipe(rename({ extname: '.html' }))
     .pipe(htmlmin())
-    .pipe(hashSrc({ build_dir: './dist', src_path: './src' }))
-    .pipe(gulp.dest('./dist'))
+    .pipe(hashSrc({ build_dir: paths.dest, src_path: paths.src }))
+    .pipe(gulp.dest(paths.dest))
     .pipe(connect.reload());
 });
 
@@ -58,15 +79,15 @@ function gulpJs(srcPaths, destFileName) {
     // mangle breaks source maps (a bug w/ uglifier)
     .pipe(uglify({ mangle: false }))
     .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./dist/js'));
+    .pipe(gulp.dest(paths.dest + '/js'));
 }
 
 gulp.task('vendorjs', function () {
-  return gulpJs('./src/js/vendor/**/*.js', 'vendor.js');
+  return gulpJs(paths.src + '/js/vendor/**/*.js', 'vendor.js');
 });
 
 gulp.task('appjs', function () {
-  return gulpJs(['./src/js/**/*.js', '!./src/js/vendor/**/*.js'], 'app.js');
+  return gulpJs([paths.src + '/js/**/*.js', '!' + paths.src + '/js/vendor/**/*.js'], 'app.js');
 });
 
 /*
@@ -77,7 +98,7 @@ gulp.task('appjs', function () {
  the source maps.
 */
 gulp.task('sass', function () {
-  return gulp.src('./src/scss/**/*.scss')
+  return gulp.src(paths.src + '/scss/**/*.scss')
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(sass())
@@ -89,40 +110,32 @@ gulp.task('sass', function () {
     .pipe(postcss([csswring]))
     .pipe(sourcemaps.init({ loadMaps: true }))
     .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./dist/css'));
+    .pipe(gulp.dest(paths.dest + '/css'));
 });
 
 // clean cleans the dist directory
 gulp.task('clean', function (cb) {
-  return del(['./dist/*'], cb);
+  return del([paths.dest + '/*'], cb);
 });
 
+// build cleans, builds, and launches a server
 gulp.task('build', ['clean'], function () {
   gulp.start('html', 'connect');
 });
 
 // connect sets up the server/live reload shtuffs
 gulp.task('connect', function() {
-  return connect.server({
-    root: './dist',
-    livereload: true
-  });
+  return connect.server({ root: paths.dest, livereload: true });
 });
 
 // reload sass
-gulp.task('reloadsass', ['sass'], function() {
-  gulp.src('./src')
-    .pipe(connect.reload());
-});
+gulp.task('reload-sass', ['sass'], refreshBrowser);
 
 // reload html/js
-gulp.task('reloadhtml', ['html'], function() {
-  gulp.src('./src')
-    .pipe(connect.reload());
-});
+gulp.task('reload-html', ['html'], refreshBrowser);
 
 // default is what runs when you just type "grunt" with no params
 gulp.task('default', ['build'], function () {
-  gulp.watch('./src/**/*.{js,html,handlebars}', ['reloadhtml']);
-  gulp.watch('./src/**/*.scss', ['reloadsass']);
+  gulp.watch(paths.src + '/**/*.{js,html,handlebars}', ['reload-html']);
+  gulp.watch(paths.src + '/**/*.scss', ['reload-sass']);
 });
