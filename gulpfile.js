@@ -27,7 +27,8 @@ var gulp = require('gulp'),
   rename = require('gulp-rename'),
   plumber = require('gulp-plumber'),
   connect = require('gulp-connect'),
-  handlebars = require('gulp-compile-handlebars');
+  handlebars = require('gulp-compile-handlebars'),
+  argv = require('yargs').argv;
 
 /*
   Helper functions
@@ -68,11 +69,11 @@ gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
 */
 function gulpJs(srcPaths, destFileName) {
   return gulp.src(srcPaths)
-    .pipe(sourcemaps.init())
+    .pipe(gulpif(!argv.release, sourcemaps.init()))
     .pipe(concat(destFileName))
     // mangle breaks source maps (a bug w/ uglifier)
-    .pipe(uglify({ mangle: false }))
-    .pipe(sourcemaps.write('.'))
+    .pipe(uglify({ mangle: argv.release }))
+    .pipe(gulpif(!argv.release, sourcemaps.write('.')))
     .pipe(gulp.dest(paths.dest + '/js'));
 }
 
@@ -114,6 +115,8 @@ gulp.task('clean', function (cb) {
 
 // build cleans, builds, and launches a server
 gulp.task('build', ['clean'], function () {
+  console.log('hello world' + argv.release);
+
   gulp.start('html', 'connect');
 });
 
