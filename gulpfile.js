@@ -1,16 +1,10 @@
 /*
   Options/parameters
 */
-var paths = (function () {
-  var src = './src',
-    dest = './dist';
-
-  return {
-    src: src,
-    dest: dest,
-    partials: src + '/partials'
-  }
-})();
+var paths = {
+  src: './src',
+  dest: './dist'
+};
 
 /*
   Imports
@@ -53,7 +47,7 @@ gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
     templateOptions = {
       ignorePartials: true,
       partials : { },
-      batch : [paths.partials],
+      batch : [paths.src + '/partials'],
       helpers : { }
     };
 
