@@ -27,7 +27,8 @@ var gulp = require('gulp'),
   plumber = require('gulp-plumber'),
   connect = require('gulp-connect'),
   handlebars = require('gulp-compile-handlebars'),
-  argv = require('yargs').argv;
+  argv = require('yargs').argv,
+  fs = require('fs');
 
 /*
   Helper functions
@@ -41,13 +42,14 @@ function refreshBrowser () {
   html process html/handlebars files, concats, minifies js,
   and hashes the src/href attribute values
 */
-gulp.task('html', ['sass', 'vendorjs', 'appjs'], function ()
+gulp.task('html', ['copy-assests', 'sass', 'vendorjs', 'appjs'], function ()
 {
-  var templateData = { },
+  var partialsPath = paths.src + '/partials',
+    templateData = { },
     templateOptions = {
       ignorePartials: true,
       partials : { },
-      batch : [paths.src + '/partials'],
+      batch : fs.existsSync(partialsPath) ? [partialsPath] : [],
       helpers : { }
     };
 
@@ -114,14 +116,18 @@ gulp.task('clean', function (cb) {
 
 // build cleans, builds, and launches a server
 gulp.task('build', ['clean'], function () {
-  console.log('hello world' + argv.release);
-
   gulp.start('html', 'connect');
 });
 
 // connect sets up the server/live reload shtuffs
 gulp.task('connect', function() {
   return connect.server({ root: paths.dest, livereload: true });
+});
+
+// copy static assets out to the dest directory
+gulp.task('copy-assests', function () {
+  gulp.src([paths.src + '/fonts/**/*']).pipe(gulp.dest(paths.dest + '/fonts'));
+  gulp.src([paths.src + '/img/**/*']).pipe(gulp.dest(paths.dest + '/img'));
 });
 
 // reload sass
