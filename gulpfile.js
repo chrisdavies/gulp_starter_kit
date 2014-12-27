@@ -154,6 +154,7 @@ gulp.task('reload-sass', ['sass'], refreshBrowser);
 gulp.task('reload-html', ['html'], refreshBrowser);
 
 // qunit runs all qunit tests
+// qunit runs all qunit tests
 gulp.task('qunit', function(done) {
   var files = glob.sync('./test/**/*.html');
   runAllQunits(files);
@@ -161,10 +162,25 @@ gulp.task('qunit', function(done) {
   function runAllQunits(testFiles) {
     var browser = new Zombie();
 
+    function errorTrace(errorNode, selector) {
+      console.log(colors.yellow((errorNode.querySelector(selector) || {}).textContent));
+    }
+
+    function printErrors() {
+      var errors = browser.document.querySelectorAll('#qunit-tests > .fail');
+      Array.prototype.slice.call(errors, 0).forEach(function (error) {
+        errorTrace(error, '.test-name');
+        errorTrace(error, '.test-message');
+        errorTrace(error, '.test-source');
+      });
+    }
+
     function printQunitResults() {
       var passed = browser.document.querySelector('#qunit-testresult .failed').textContent.trim() === '0',
         color = passed ? 'green' : 'red',
         text = browser.document.querySelector('#qunit-testresult').textContent;
+
+      !passed && printErrors();
 
       console.log(colors[color](text));
       return text;
