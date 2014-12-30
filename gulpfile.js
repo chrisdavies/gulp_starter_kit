@@ -25,6 +25,11 @@ var gulp = require('gulp'),
   del = require('del'),
   glob = require('glob');
 
+/********************************************************
+  Debug/build tasks
+*********************************************************/
+
+/* Serve the build directory */
 gulp.task('serveBuild', function() {
   connect.server({
     root: 'build',
@@ -33,11 +38,9 @@ gulp.task('serveBuild', function() {
   });
 });
 
-gulp.task('serveRelease', function() {
-  connect.server({
-    root: 'release',
-    port: 8000
-  });
+/* Cleans the build directory */
+gulp.task('cleanBuild', function(cb) {
+  del('./build', cb);
 });
 
 /* Copy static assets to the build directory */
@@ -68,6 +71,7 @@ gulp.task('js', function() {
     .pipe(connect.reload());
 });
 
+/* Process handlebars templates and build into html */
 gulp.task('hbs', function() {
   var hbs = {
     content: {},
@@ -86,20 +90,52 @@ gulp.task('hbs', function() {
     .pipe(connect.reload());
 });
 
+/* Move html into the build directory */
 gulp.task('html', function() {
   return gulp.src('./src/**/*.html')
     .pipe(gulp.dest('./build'))
     .pipe(connect.reload());
 });
 
-gulp.task('uglify', function() {
-  return gulp.src('./build/js/*.js')
-    .pipe(uglify())
-    .pipe(gulp.dest('./release/js'))
+
+/**********************************************************
+  Release tasks
+***********************************************************/
+
+/* Serve the release directory */
+gulp.task('serveRelease', function() {
+  connect.server({
+    root: 'release',
+    port: 8000
+  });
 });
 
-gulp.task('minify', function() {
-  return gulp.src('./build/*.html')
+/* Copy static assets to the release directory */
+gulp.task('releaseAssets', ['assets'], function() {
+  gulp.src('./build/fonts/**/*')
+    .pipe(gulp.dest('./release/fonts'));
+
+  gulp.src('./build/img/**/*')
+    .pipe(gulp.dest('./release/img'));
+});
+
+/* Optimize JS files */
+gulp.task('minifyjs', ['js'], function() {
+  return gulp.src('./build/js/**/*.js')
+    .pipe(uglify())
+    .pipe(gulp.dest('./release/js'));
+});
+
+/* Optimize CSS files */
+gulp.task('minifycss', ['css'], function() {
+  return gulp.src('./build/css/**/*.css')
+    .pipe(cssmin())
+    .pipe(gulp.dest('./release/css'));
+});
+
+/* Optimize HTML files */
+gulp.task('minifyhtml', ['hbs', 'html'], function() {
+  return gulp.src('./build/**/*.html')
     .pipe(inlinesource({
       compress: true
     }))
@@ -108,33 +144,38 @@ gulp.task('minify', function() {
       build_dir: './release',
       src_path: './build'
     }))
-    .pipe(gulp.dest('./release'))
-});
-
-/* clean cleans the build directory */
-gulp.task('cleanBuild', function(cb) {
-  return del('./build', cb);
+    .pipe(gulp.dest('./release'));
 });
 
 /* clean cleans the release directory */
 gulp.task('cleanRelease', function(cb) {
-  return del('./release', cb);
+  del('./release', cb);
 });
+
+/***************************************************
+  Build commands
+****************************************************/
 
 /*
   Default task, no optimizations, serves from the 'build'
   directory
 */
-gulp.task('default', ['serveBuild', 'cleanBuild', 'watch'], function() {
-  gulp.start('js', 'css', 'hbs', 'html');
+gulp.task('default', ['serveBuild', 'build', 'watch']);
+
+/*
+  Debug build, no optimizations, builds to the
+  'build' directory
+*/
+gulp.task('build', ['cleanBuild'], function () {
+  return gulp.start('assets', 'js', 'css', 'hbs', 'html');
 });
 
 /*
   Release build, optimizes sources and serves from
   the 'release' directory
 */
-gulp.task('release', ['serveRelease', 'cleanRelease'], function() {
-  gulp.start('uncss', 'uglify', 'minify');
+gulp.task('release', ['serveRelease', 'cleanBuild', 'cleanRelease'], function() {
+  return gulp.start('releaseAssets', 'minifyjs', 'minifycss', 'minifyhtml');
 });
 
 /* Watch task */
