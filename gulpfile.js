@@ -6,6 +6,11 @@
 
   "gulp release" creates an optimized build in the
   "release" directory
+
+  "gulp release --minonly" same as "gulp release" except
+  that it expects all sources to be referenced via gulp-usemin
+  references, so it doesn't copy js or css to the "release"
+  directory.
 */
 
 /* Load plugins */
@@ -14,15 +19,17 @@ var gulp = require('gulp'),
   watch = require('gulp-watch'),
   jshint = require('gulp-jshint'),
   connect = require('gulp-connect'),
-  cssmin = require('gulp-cssmin'),
-  minifyhtml = require('gulp-minify-html'),
+  minifyCss = require('gulp-minify-css'),
+  minifyHtml = require('gulp-minify-html'),
   hashSrc = require('gulp-hash-src'),
-  inlinesource = require('gulp-inline-source'),
   handlebars = require('gulp-static-handlebars'),
   uglify = require('gulp-uglify'),
   rename = require('gulp-rename'),
   gulpif = require('gulp-if'),
   del = require('del'),
+  argv = require('yargs').argv,
+  rev = require('gulp-rev'),
+  usemin = require('gulp-usemin'),
   glob = require('glob');
 
 /********************************************************
@@ -121,28 +128,29 @@ gulp.task('releaseAssets', ['assets'], function() {
 
 /* Optimize JS files */
 gulp.task('minifyjs', ['js'], function() {
-  return gulp.src('./build/js/**/*.js')
-    .pipe(uglify())
-    .pipe(gulp.dest('./release/js'));
+  if (!argv.minonly) {
+    return gulp.src('./build/js/**/*.js')
+      .pipe(uglify())
+      .pipe(gulp.dest('./release/js'));
+  }
 });
 
 /* Optimize CSS files */
 gulp.task('minifycss', ['css'], function() {
-  return gulp.src('./build/css/**/*.css')
-    .pipe(cssmin())
-    .pipe(gulp.dest('./release/css'));
+  if (!argv.minonly) {
+    return gulp.src('./build/css/**/*.css')
+      .pipe(minifyCss())
+      .pipe(gulp.dest('./release/css'));
+  }
 });
 
 /* Optimize HTML files */
 gulp.task('minifyhtml', ['releaseAssets', 'minifycss', 'minifyjs', 'hbs', 'html'], function() {
   return gulp.src('./build/**/*.html')
-    .pipe(inlinesource({
-      compress: true
-    }))
-    .pipe(minifyhtml())
-    .pipe(hashSrc({
-      build_dir: './release',
-      src_path: './build'
+    .pipe(usemin({
+      css: [minifyCss(), 'concat', rev()],
+      html: [minifyHtml({ empty: true })],
+      js: [uglify(), rev()]
     }))
     .pipe(gulp.dest('./release'));
 });
@@ -175,7 +183,7 @@ gulp.task('build', ['cleanBuild'], function () {
   the 'release' directory
 */
 gulp.task('release', ['serveRelease', 'cleanBuild', 'cleanRelease'], function() {
-  return gulp.start('releaseAssets', 'minifyjs', 'minifycss', 'minifyhtml');
+  return gulp.start('minifyhtml');
 });
 
 /* Watch task */
