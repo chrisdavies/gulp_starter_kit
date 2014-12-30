@@ -11,6 +11,8 @@
   that it expects all sources to be referenced via gulp-usemin
   references, so it doesn't copy js or css to the "release"
   directory.
+
+  "gulp test" runs all qunit tests in the test directory
 */
 
 /* Load plugins */
@@ -30,7 +32,10 @@ var gulp = require('gulp'),
   argv = require('yargs').argv,
   rev = require('gulp-rev'),
   usemin = require('gulp-usemin'),
-  glob = require('glob');
+  glob = require('glob'),
+  path = require('path'),
+  Zombie = require('zombie'),
+  colors = require('colors/safe');
 
 /********************************************************
   Debug/build tasks
@@ -184,6 +189,75 @@ gulp.task('build', ['cleanBuild'], function () {
 */
 gulp.task('release', ['serveRelease', 'cleanBuild', 'cleanRelease'], function() {
   return gulp.start('minifyhtml');
+});
+
+/*
+  Test build, runs any qUnit tests in the test directory
+*/
+gulp.task('test', function(done) {
+  runAllQunits(glob.sync('./test/**/*.html'));
+  
+  /*
+    Runs the test files using zombiejs.
+  */
+  function runAllQunits(testFiles) {
+    var browser = new Zombie();
+
+    function errorTrace(errorNode, selector) {
+      console.log(colors.yellow((errorNode.querySelector(selector) || {}).textContent));
+    }
+
+    function printErrors() {
+      var errors = browser.document.querySelectorAll('#qunit-tests > .fail');
+      Array.prototype.slice.call(errors, 0).forEach(function (error) {
+        errorTrace(error, '.test-name');
+        errorTrace(error, '.test-message');
+        errorTrace(error, '.test-source');
+      });
+    }
+
+    function printQunitResults() {
+      var passed = browser.document.querySelector('#qunit-testresult .failed').textContent.trim() === '0',
+        color = passed ? 'green' : 'red',
+        text = browser.document.querySelector('#qunit-testresult').textContent;
+
+      !passed && printErrors();
+
+      console.log(colors[color](text));
+      return text;
+    }
+
+    function cleanUp() {
+      browser.close();
+      done();
+    }
+
+    function testFile(file) {
+      console.log(file);
+      var url = 'file:/' + path.resolve(file);
+
+      console.log('Running ' + file);
+
+      browser.visit(url).then(printQunitResults).then(next);
+    }
+
+    function queueTest() {
+      setTimeout(function () {
+        testFile(testFiles.pop());
+      });
+    }
+
+    function next() {
+      if (testFiles.length) {
+        queueTest();
+      } else {
+        cleanUp();
+      }
+    }
+
+    next();
+  }
+
 });
 
 /* Watch task */
