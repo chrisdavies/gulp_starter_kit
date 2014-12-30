@@ -134,7 +134,7 @@ gulp.task('minifycss', ['css'], function() {
 });
 
 /* Optimize HTML files */
-gulp.task('minifyhtml', ['hbs', 'html'], function() {
+gulp.task('minifyhtml', ['releaseAssets', 'minifycss', 'minifyjs', 'hbs', 'html'], function() {
   return gulp.src('./build/**/*.html')
     .pipe(inlinesource({
       compress: true
