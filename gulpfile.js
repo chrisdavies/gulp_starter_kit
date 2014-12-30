@@ -1,9 +1,11 @@
 /*
   The gulp build process is as follows:
 
-  "gulp" runs in debug mode and serves out of the "build" directory
+  "gulp" runs in debug mode and serves out of the
+  "build" directory
 
-  "gulp release" creates an optimized build in the "release" directory
+  "gulp release" creates an optimized build in the
+  "release" directory
 */
 
 /* Load plugins */
@@ -49,7 +51,7 @@ gulp.task('assets', function() {
 
 /* Process scss and copy to the css build directory */
 gulp.task('css', function() {
-  return gulp.src('./src/scss/*.scss')
+  return gulp.src('./src/scss/**/*.scss')
     .pipe(sass())
     .pipe(gulp.dest('./build/css'))
     .pipe(connect.reload());
@@ -57,9 +59,11 @@ gulp.task('css', function() {
 
 /* Process js and copy to the js build directory */
 gulp.task('js', function() {
-  return gulp.src('./src/js/*.js')
+  gulp.src(['./src/js/**/*.js', '!./src/js/vendor/**/*.js'])
     .pipe(jshint())
-    .pipe(jshint.reporter('default'))
+    .pipe(jshint.reporter('default'));
+
+  return gulp.src('./src/js/**/*.js')
     .pipe(gulp.dest('./build/js'))
     .pipe(connect.reload());
 });
