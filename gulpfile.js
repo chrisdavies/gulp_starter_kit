@@ -13,6 +13,8 @@
   directory.
 
   "gulp test" runs all qunit tests in the test directory
+
+  "gulp watchTests" run tests any time any tests change
 */
 
 /* Load plugins */
@@ -196,7 +198,7 @@ gulp.task('release', ['serveRelease', 'cleanBuild', 'cleanRelease'], function() 
 */
 gulp.task('test', function(done) {
   runAllQunits(glob.sync('./test/**/*.html'));
-  
+
   /*
     Runs the test files using zombiejs.
   */
@@ -238,7 +240,11 @@ gulp.task('test', function(done) {
 
       console.log('Running ' + file);
 
-      browser.visit(url).then(printQunitResults).then(next);
+      browser.visit(url)
+        .then(printQunitResults)
+        .catch(function (ex) {
+          console.log(colors.red(ex));
+        }).finally(next);
     }
 
     function queueTest() {
@@ -257,7 +263,11 @@ gulp.task('test', function(done) {
 
     next();
   }
+});
 
+/* Watch tests task */
+gulp.task('watchTests', ['test'], function () {
+  gulp.watch(['./test/**/*'], ['test']);
 });
 
 /* Watch task */
