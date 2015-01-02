@@ -37,6 +37,7 @@ var gulp = require('gulp'),
   glob = require('glob'),
   path = require('path'),
   Zombie = require('zombie'),
+  autoprefixer = require('gulp-autoprefixer'),
   colors = require('colors/safe');
 
 /********************************************************
@@ -146,6 +147,10 @@ gulp.task('minifyjs', ['js'], function() {
 gulp.task('minifycss', ['css'], function() {
   if (!argv.minonly) {
     return gulp.src('./build/css/**/*.css')
+      .pipe(autoprefixer({
+        browsers: ['last 2 versions'],
+        cascade: false
+      }))
       .pipe(minifyCss())
       .pipe(gulp.dest('./release/css'));
   }
