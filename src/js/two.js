@@ -5,5 +5,5 @@
     return '--' + title;
   }
 
-  document.title += getTitle('two');
+  document.title += getTitle('t2eo');
 })();

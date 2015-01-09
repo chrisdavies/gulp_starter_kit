@@ -17,7 +17,7 @@
   "gulp watchTests" run tests any time any tests change
 */
 
-/* Load plugins */
+// Load all the required plugins
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
   watch = require('gulp-watch'),
@@ -34,252 +34,130 @@ var gulp = require('gulp'),
   argv = require('yargs').argv,
   rev = require('gulp-rev'),
   usemin = require('gulp-usemin'),
+  order = require('gulp-order'),
   glob = require('glob'),
-  path = require('path'),
-  Zombie = require('zombie'),
   autoprefixer = require('gulp-autoprefixer'),
-  colors = require('colors/safe');
+  inject = require('gulp-inject'),
+  qunit = require('./gulp/qunit'),
+  deploy = require('gulp-gh-pages');
 
-/********************************************************
-  Debug/build tasks
-*********************************************************/
+// srcDir is the source directory
+var srcDir = './src',
+  destDir = './dist';
 
-/* Serve the build directory */
-gulp.task('serveBuild', function() {
+// src holds the values of source folders
+var src = {
+  sass:    srcDir + '/css/**/*.scss',
+  scripts: srcDir + '/js/**/*.js',
+  images:  srcDir + '/img/**/*',
+  fonts:   srcDir + '/fonts/**/*',
+  html:    srcDir + '/**/*.html',
+  tests:   './test/**/*',
+  vendorScripts: srcDir + '/js/vendor/**/*.js'
+};
+
+// dest holds the values of desination folders
+var dest = {
+  sass:    destDir + '/css',
+  scripts: destDir + '/js',
+  images:  destDir + '/img',
+  fonts:   destDir + '/fonts',
+  html:    destDir
+};
+
+
+// default builds, serves, and watches /src into /dist
+gulp.task('default', ['build:dev', 'serve', 'watch']);
+
+
+// test runs qunit tests from the /test directory
+gulp.task('test', function(done) {
+  qunit(glob.sync(src.tests + '.html'), done);
+});
+
+
+// test:watch runs tests continually as js files change
+gulp.task('test:watch', ['test'], function() {
+  gulp.watch([src.tests, src.scripts], ['test']);
+});
+
+
+// build:dev builds in local development mode
+gulp.task('build:dev', ['assets', 'css', 'js', 'html']);
+
+
+// watch watches the /src directory for changes and
+// launches the appropriate task
+gulp.task('watch', function () {
+  gulp.watch([src.fonts, src.images], ['assets']);
+  gulp.watch(src.sass, ['css']);
+  gulp.watch(src.scripts, ['js']);
+  gulp.watch(src.html, ['html']);
+});
+
+
+// serve serves files from the /dist directory
+gulp.task('serve', function () {
   connect.server({
-    root: 'build',
+    root: 'dist',
     port: 8000,
     livereload: true
   });
 });
 
-/* Cleans the build directory */
-gulp.task('cleanBuild', function(cb) {
-  del('./build', cb);
-});
 
-/* Copy static assets to the build directory */
-gulp.task('assets', function() {
-  gulp.src('./src/fonts/**/*')
-    .pipe(gulp.dest('./build/fonts'));
-
-  gulp.src('./src/img/**/*')
-    .pipe(gulp.dest('./build/img'));
-});
-
-/* Process scss and copy to the css build directory */
-gulp.task('css', function() {
-  return gulp.src('./src/scss/**/*.scss')
-    .pipe(sass())
-    .pipe(gulp.dest('./build/css'))
-    .pipe(connect.reload());
-});
-
-/* Process js and copy to the js build directory */
+// js processes javascript files for dev-builds
 gulp.task('js', function() {
-  gulp.src(['./src/js/**/*.js', '!./src/js/vendor/**/*.js'])
+  var notVendorScript = '!' + src.vendorScripts;
+
+  gulp.src([src.scripts, notVendorScript])
     .pipe(jshint())
-    .pipe(jshint.reporter('default'));
+    .pipe(jshint.reporter(''));
 
-  return gulp.src('./src/js/**/*.js')
-    .pipe(gulp.dest('./build/js'))
+  return gulp.src(src.scripts)
+    .pipe(gulp.dest(dest.scripts))
     .pipe(connect.reload());
 });
 
-/* Process handlebars templates and build into html */
-gulp.task('hbs', function() {
-  var hbs = {
-    content: {},
-    options: {
-      helpers: gulp.src('./src/helpers/**/*.js'),
-      partials: gulp.src('./src/partials/**/*.hbs')
-    }
-  };
 
-  return gulp.src(['./src/**/*.hbs', '!./src/partials/**/*.hbs'])
-    .pipe(handlebars(hbs.content, hbs.options))
-    .pipe(rename({
-      extname: '.html'
-    }))
-    .pipe(gulp.dest('./build'))
+// css runs scss preprocessing and distributes to
+// the dest folder
+gulp.task('css', function() {
+  return gulp.src(src.sass)
+    .pipe(sass())
+    .pipe(gulp.dest(dest.sass))
     .pipe(connect.reload());
 });
 
-/* Move html into the build directory */
+
+// html moves html files to the /dest directory and
+// injects JS into them using gulp-inject
 gulp.task('html', function() {
-  return gulp.src('./src/**/*.html')
-    .pipe(gulp.dest('./build'))
+  var jsOrder = require('./gulp/jsorder');
+
+  var jsFiles = gulp.src(src.scripts, { read: false })
+    .pipe(order(jsOrder));
+
+  return gulp.src(src.html)
+    .pipe(inject(jsFiles, { relative: true }))
+    .pipe(gulp.dest(dest.html))
     .pipe(connect.reload());
 });
 
 
-/**********************************************************
-  Release tasks
-***********************************************************/
+// assets copies static assests (images, fonts, etc)
+gulp.task('assets', ['fonts', 'img']);
 
-/* Serve the release directory */
-gulp.task('serveRelease', function() {
-  connect.server({
-    root: 'release',
-    port: 8000
-  });
+
+// fonts copies fonts to the destination
+gulp.task('fonts', function () {
+  return gulp.src(src.fonts)
+    .pipe(gulp.dest(dest.fonts));
 });
 
-/* Copy static assets to the release directory */
-gulp.task('releaseAssets', ['assets'], function() {
-  gulp.src('./build/fonts/**/*')
-    .pipe(gulp.dest('./release/fonts'));
 
-  gulp.src('./build/img/**/*')
-    .pipe(gulp.dest('./release/img'));
-});
-
-/* Optimize JS files */
-gulp.task('minifyjs', ['js'], function() {
-  if (!argv.minonly) {
-    return gulp.src('./build/js/**/*.js')
-      .pipe(uglify())
-      .pipe(gulp.dest('./release/js'));
-  }
-});
-
-/* Optimize CSS files */
-gulp.task('minifycss', ['css'], function() {
-  if (!argv.minonly) {
-    return gulp.src('./build/css/**/*.css')
-      .pipe(autoprefixer({
-        browsers: ['last 2 versions'],
-        cascade: false
-      }))
-      .pipe(minifyCss())
-      .pipe(gulp.dest('./release/css'));
-  }
-});
-
-/* Optimize HTML files */
-gulp.task('minifyhtml', ['releaseAssets', 'minifycss', 'minifyjs', 'hbs', 'html'], function() {
-  return gulp.src('./build/**/*.html')
-    .pipe(usemin({
-      css: [minifyCss(), 'concat', rev()],
-      html: [minifyHtml({ empty: true })],
-      js: [uglify(), rev()]
-    }))
-    .pipe(gulp.dest('./release'));
-});
-
-/* clean cleans the release directory */
-gulp.task('cleanRelease', function(cb) {
-  del('./release', cb);
-});
-
-/***************************************************
-  Build commands
-****************************************************/
-
-/*
-  Default task, no optimizations, serves from the 'build'
-  directory
-*/
-gulp.task('default', ['serveBuild', 'build', 'watch']);
-
-/*
-  Debug build, no optimizations, builds to the
-  'build' directory
-*/
-gulp.task('build', ['cleanBuild'], function () {
-  return gulp.start('assets', 'js', 'css', 'hbs', 'html');
-});
-
-/*
-  Release build, optimizes sources and serves from
-  the 'release' directory
-*/
-gulp.task('release', ['serveRelease', 'cleanBuild', 'cleanRelease'], function() {
-  return gulp.start('minifyhtml');
-});
-
-/*
-  Test build, runs any qUnit tests in the test directory
-*/
-gulp.task('test', function(done) {
-  runAllQunits(glob.sync('./test/**/*.html'));
-
-  /*
-    Runs the test files using zombiejs.
-  */
-  function runAllQunits(testFiles) {
-    var browser = new Zombie();
-
-    function errorTrace(errorNode, selector) {
-      console.log(colors.yellow((errorNode.querySelector(selector) || {}).textContent));
-    }
-
-    function printErrors() {
-      var errors = browser.document.querySelectorAll('#qunit-tests > .fail');
-      Array.prototype.slice.call(errors, 0).forEach(function (error) {
-        errorTrace(error, '.test-name');
-        errorTrace(error, '.test-message');
-        errorTrace(error, '.test-source');
-      });
-    }
-
-    function printQunitResults() {
-      var passed = browser.document.querySelector('#qunit-testresult .failed').textContent.trim() === '0',
-        color = passed ? 'green' : 'red',
-        text = browser.document.querySelector('#qunit-testresult').textContent;
-
-      !passed && printErrors();
-
-      console.log(colors[color](text));
-      return text;
-    }
-
-    function cleanUp() {
-      browser.close();
-      done();
-    }
-
-    function testFile(file) {
-      console.log(file);
-      var url = 'file:/' + path.resolve(file);
-
-      console.log('Running ' + file);
-
-      browser.visit(url)
-        .then(printQunitResults)
-        .catch(function (ex) {
-          console.log(colors.red(ex));
-        }).finally(next);
-    }
-
-    function queueTest() {
-      setTimeout(function () {
-        testFile(testFiles.pop());
-      });
-    }
-
-    function next() {
-      if (testFiles.length) {
-        queueTest();
-      } else {
-        cleanUp();
-      }
-    }
-
-    next();
-  }
-});
-
-/* Watch tests task */
-gulp.task('watchTests', ['test'], function () {
-  gulp.watch(['./test/**/*'], ['test']);
-});
-
-/* Watch task */
-gulp.task('watch', function() {
-  gulp.watch(['./src/fonts/**/*', './src/img/**/*'], ['assets']);
-  gulp.watch('./src/scss/**/*.scss', ['css']);
-  gulp.watch('./src/js/**/*.js', ['js']);
-  gulp.watch('./src/**/*.html', ['html']);
-  gulp.watch('./src/**/*.hbs', ['hbs']);
+// img copies images to the destination
+gulp.task('img', function () {
+  return gulp.src(src.images)
+    .pipe(gulp.dest(dest.images));
 });
