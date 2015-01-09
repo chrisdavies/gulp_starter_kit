@@ -2,11 +2,9 @@
 
 A basic Gulp setup for generating a static site.
 
-Running "gulp" will compile the site found in "src" and deploy it to a folder called "dest". Support is built in for handlebars templates and sccs.
+Running "gulp" will compile the site found in "src" and deploy it to a folder called "dist". Support is built in for SCSS.
 
-JavaScript, CSS, and HTML are all minified.
-
-Src/hrefs are all cache-busted.
+Running "gulp release" will minify JavaScript, CSS, and HTML, and bust caches.
 
 ## Getting Started
 
@@ -14,10 +12,28 @@ To get started, clone this repo, and modify/delete/add sources in the src folder
 
 Run "gulp" to launch the site in debug mode.
 
+## Scripts
+
+Out of the box, any scripts in /src/js/vendor will be bundled into /dest/js/vendor.js
+
+And all other scripts will be bundled into /dest/js/app.js
+
+If you need a new bundle, edit /gulp/script-definitions.js and add a new bundle.
+
+    // This is where any explicit script odering should
+    // be declared.
+    module.exports = {
+      app: ['!./src/js/vendor/**/*', './src/js/**/*'],
+      vendor: ['./src/js/vendor/**/*'],
+      mynewbundle: ['./src/someotherplace/*.js']
+    };
+
+If you need to modify the ordering of scripts in existing bundles, edit their definition in /gulp/script-definitions.js
+
 ## Minification Bug
 
-The one catch is that JavaScript minification does not mangle variable names, due to a bug with uglifier's source maps. When uglifier mangles names, the source maps do not recognize the original names. (e.g. evaluating original variable names in the console always results in undefined).
+When JavaScript is uglified, source maps stop working.
 
-So, to facilitate debugging, this build process doesn't mangle names.
+## TODO
 
-To build a "release" build with mangled variable names, run "gulp build --release".
+* Add support for build-time templates

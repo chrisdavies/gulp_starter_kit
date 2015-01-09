@@ -17,12 +17,13 @@
   "gulp watchTests" run tests any time any tests change
 */
 
-// Load all the required plugins
+// Load plugins
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
   watch = require('gulp-watch'),
   jshint = require('gulp-jshint'),
   connect = require('gulp-connect'),
+  concat = require('gulp-concat'),
   minifyCss = require('gulp-minify-css'),
   minifyHtml = require('gulp-minify-html'),
   hashSrc = require('gulp-hash-src'),
@@ -33,13 +34,17 @@ var gulp = require('gulp'),
   del = require('del'),
   argv = require('yargs').argv,
   rev = require('gulp-rev'),
-  usemin = require('gulp-usemin'),
+  spa = require('gulp-spa'),
   order = require('gulp-order'),
   glob = require('glob'),
   autoprefixer = require('gulp-autoprefixer'),
   inject = require('gulp-inject'),
   qunit = require('./gulp/qunit'),
-  deploy = require('gulp-gh-pages');
+  deploy = require('gulp-gh-pages'),
+  addsrc = require('gulp-add-src'),
+  htmlReplace = require('gulp-html-replace'),
+  merge = require('merge-stream'),
+  sourcemaps = require('gulp-sourcemaps');
 
 // srcDir is the source directory
 var srcDir = './src',
@@ -70,6 +75,10 @@ var dest = {
 gulp.task('default', ['build:dev', 'serve', 'watch']);
 
 
+// release builds and serves production ready content
+gulp.task('release', ['build:release', 'serve']);
+
+
 // test runs qunit tests from the /test directory
 gulp.task('test', function(done) {
   qunit(glob.sync(src.tests + '.html'), done);
@@ -83,8 +92,60 @@ gulp.task('test:watch', ['test'], function() {
 
 
 // build:dev builds in local development mode
-gulp.task('build:dev', ['assets', 'css', 'js', 'html']);
+gulp.task('build:dev', ['clean'], function () {
+  return gulp.start('assets', 'js', 'css', 'html');
+});
 
+// build:release builds production-ready content
+gulp.task('build:release', ['clean'], function () {
+  return gulp.start('assets', 'html:release', 'bust-cache');
+});
+
+// css:release builds and minifies scss
+gulp.task('css:release', function () {
+  return buildCss(minifyCss());
+});
+
+gulp.task('css', function () {
+  return buildCss();
+});
+
+function buildCss(postProcessing) {
+  var stream = gulp.src(src.sass)
+    .pipe(sass())
+    .pipe(autoprefixer({
+      browsers: ['last 2 versions'],
+      cascade: false
+    }));
+
+  if (postProcessing) {
+    stream = stream.pipe(postProcessing);
+  }
+
+  return stream.pipe(gulp.dest(dest.sass));
+}
+
+
+// html moves html files to the /dest directory and
+// injects JS into them using gulp-inject
+gulp.task('html', function() {
+  return gulp.src(src.html)
+    .pipe(gulp.dest(dest.html))
+    .pipe(connect.reload());
+});
+
+gulp.task('html:release', ['css:release', 'js:release'], function () {
+  return gulp.src(src.html)
+    .pipe(minifyHtml())
+    .pipe(gulp.dest(dest.html));
+});
+
+// bust-cache hashes urls
+gulp.task('bust-cache', ['html:release'], function () {
+  return gulp.src(destDir + '/**.*html')
+    .pipe(hashSrc({ build_dir: destDir, src_path: srcDir }))
+    .pipe(gulp.dest(destDir));
+});
 
 // watch watches the /src directory for changes and
 // launches the appropriate task
@@ -108,40 +169,57 @@ gulp.task('serve', function () {
 
 // js processes javascript files for dev-builds
 gulp.task('js', function() {
-  var notVendorScript = '!' + src.vendorScripts;
-
-  gulp.src([src.scripts, notVendorScript])
-    .pipe(jshint())
-    .pipe(jshint.reporter(''));
-
-  return gulp.src(src.scripts)
-    .pipe(gulp.dest(dest.scripts))
-    .pipe(connect.reload());
+  return bulidJs();
 });
 
-
-// css runs scss preprocessing and distributes to
-// the dest folder
-gulp.task('css', function() {
-  return gulp.src(src.sass)
-    .pipe(sass())
-    .pipe(gulp.dest(dest.sass))
-    .pipe(connect.reload());
+gulp.task('js:release', function () {
+  return bulidJs(uglify());
 });
 
+function bulidJs(postProcessing) {
+  var scriptDefinitions = require('./gulp/script-definitions');
+  var isVendorScript = { 'vendor': true };
+  var scriptNames = Object.keys(scriptDefinitions);
 
-// html moves html files to the /dest directory and
-// injects JS into them using gulp-inject
-gulp.task('html', function() {
-  var jsOrder = require('./gulp/jsorder');
+  // Grab app scripts, concat, etc
+  var appScripts = merge(scriptNames
+    .filter(function (scriptName) {
+      return !isVendorScript[scriptName];
+    })
+    .map(function (scriptName) {
+      var stream = gulp.src(scriptDefinitions[scriptName])
+        .pipe(jshint())
+        .pipe(jshint.reporter(''))
+        .pipe(sourcemaps.init({ base: 'src' }))
+        .pipe(concat(scriptName + '.js'))
+        .pipe(sourcemaps.write('./'));
 
-  var jsFiles = gulp.src(src.scripts, { read: false })
-    .pipe(order(jsOrder));
+      if (postProcessing) {
+        stream = stream.pipe(postProcessing);
+      }
 
-  return gulp.src(src.html)
-    .pipe(inject(jsFiles, { relative: true }))
-    .pipe(gulp.dest(dest.html))
-    .pipe(connect.reload());
+      return stream;
+    }));
+
+  // Grab vendor scripts and concat them
+  var vendorScripts = merge(scriptNames
+    .filter(function (scriptName) {
+      return isVendorScript[scriptName];
+    })
+    .map(function (scriptName) {
+      return gulp.src(scriptDefinitions[scriptName])
+        .pipe(concat(scriptName + '.js'));
+    }));
+
+  // Merge vendor and app scripts into one stream
+  return merge(appScripts, vendorScripts)
+    .pipe(gulp.dest(dest.scripts));
+}
+
+
+// clean cleans the destination directory
+gulp.task('clean', function (cb) {
+  del(destDir, cb);
 });
 
 
@@ -160,4 +238,11 @@ gulp.task('fonts', function () {
 gulp.task('img', function () {
   return gulp.src(src.images)
     .pipe(gulp.dest(dest.images));
+});
+
+
+// deploy pushes the contents of dist to gh-pages
+gulp.task('deploy', function () {
+  return gulp.src(destDir + '/**/*')
+    .pipe(deploy());
 });
