@@ -20,7 +20,7 @@
 // Load plugins
 var gulp = require('gulp'),
   sass = require('gulp-sass'),
-  watch = require('gulp-watch'),
+  monocle = require('monocle'),
   jshint = require('gulp-jshint'),
   connect = require('gulp-connect'),
   concat = require('gulp-concat'),
@@ -29,20 +29,12 @@ var gulp = require('gulp'),
   hashSrc = require('gulp-hash-src'),
   handlebars = require('gulp-static-handlebars'),
   uglify = require('gulp-uglify'),
-  rename = require('gulp-rename'),
   gulpif = require('gulp-if'),
   del = require('del'),
-  argv = require('yargs').argv,
-  rev = require('gulp-rev'),
-  spa = require('gulp-spa'),
-  order = require('gulp-order'),
   glob = require('glob'),
   autoprefixer = require('gulp-autoprefixer'),
-  inject = require('gulp-inject'),
   qunit = require('./gulp/qunit'),
   deploy = require('gulp-gh-pages'),
-  addsrc = require('gulp-add-src'),
-  htmlReplace = require('gulp-html-replace'),
   merge = require('merge-stream'),
   sourcemaps = require('gulp-sourcemaps');
 
@@ -103,26 +95,25 @@ gulp.task('build:release', ['clean'], function () {
 
 // css:release builds and minifies scss
 gulp.task('css:release', function () {
-  return buildCss(minifyCss());
+  return buildCss({ minify: true });
 });
 
 gulp.task('css', function () {
-  return buildCss();
+  return buildCss()
+    .pipe(connect.reload());
 });
 
-function buildCss(postProcessing) {
-  var stream = gulp.src(src.sass)
+function buildCss(options) {
+  options = options || {};
+
+  return gulp.src(src.sass)
     .pipe(sass())
     .pipe(autoprefixer({
       browsers: ['last 2 versions'],
       cascade: false
-    }));
-
-  if (postProcessing) {
-    stream = stream.pipe(postProcessing);
-  }
-
-  return stream.pipe(gulp.dest(dest.sass));
+    }))
+    .pipe(gulpif(options.minify, minifyCss()))
+    .pipe(gulp.dest(dest.sass));
 }
 
 
@@ -152,10 +143,30 @@ gulp.task('bust-cache', ['html:release'], function () {
 // watch watches the /src directory for changes and
 // launches the appropriate task
 gulp.task('watch', function () {
-  gulp.watch([src.fonts, src.images], ['assets']);
-  gulp.watch(src.sass, ['css']);
-  gulp.watch(src.scripts, ['js']);
-  gulp.watch(src.html, ['html']);
+  var watch = require('./gulp/watch');
+
+  function gulpStart(task) {
+    return function () {
+      gulp.start(task);
+    }
+  }
+
+  watch({
+    root: srcDir,
+    match: [{
+      when: 'js/**',
+      then: gulpStart('js')
+    }, {
+      when: '+(scss|css)/**',
+      then: gulpStart('css')
+    }, {
+      when: '+(fonts|img)/**',
+      then: gulpStart('assets')
+    }, {
+      when: '*.html',
+      then: gulpStart('html')
+    }]
+  });
 });
 
 
@@ -171,14 +182,17 @@ gulp.task('serve', function () {
 
 // js processes javascript files for dev-builds
 gulp.task('js', function() {
-  return bulidJs();
+  return buildJs()
+    .pipe(connect.reload());
 });
 
 gulp.task('js:release', function () {
-  return bulidJs(uglify());
+  return buildJs({ minify: true });
 });
 
-function bulidJs(postProcessing) {
+function buildJs(options) {
+  options = options || {};
+
   var scriptDefinitions = require('./gulp/script-definitions'),
       scriptNames = Object.keys(scriptDefinitions),
       appScriptNames = scriptNames.filter(function (scriptName) {
@@ -187,18 +201,13 @@ function bulidJs(postProcessing) {
 
   // Grab app scripts, concat, etc
   var result = merge(appScriptNames.map(function (scriptName) {
-      var stream = gulp.src(scriptDefinitions[scriptName])
+      return gulp.src(scriptDefinitions[scriptName])
         .pipe(jshint())
         .pipe(jshint.reporter(''))
         .pipe(sourcemaps.init({ base: 'src' }))
         .pipe(concat(scriptName + '.js'))
+        .pipe(gulpif(options.minify, uglify()))
         .pipe(sourcemaps.write('./'));
-
-      if (postProcessing) {
-        stream = stream.pipe(postProcessing);
-      }
-
-      return stream;
     }));
 
   // Grab vendor scripts and concat them, if any exist
@@ -225,14 +234,16 @@ gulp.task('assets', ['fonts', 'img']);
 // fonts copies fonts to the destination
 gulp.task('fonts', function () {
   return gulp.src(src.fonts)
-    .pipe(gulp.dest(dest.fonts));
+    .pipe(gulp.dest(dest.fonts))
+    .pipe(connect.reload());
 });
 
 
 // img copies images to the destination
 gulp.task('img', function () {
   return gulp.src(src.images)
-    .pipe(gulp.dest(dest.images));
+    .pipe(gulp.dest(dest.images))
+    .pipe(connect.reload());
 });
 
 
