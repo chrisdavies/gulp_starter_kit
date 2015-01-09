@@ -19,6 +19,7 @@
 
 // Load plugins
 var gulp = require('gulp'),
+  ejs = require('gulp-ejs'),
   sass = require('gulp-sass'),
   monocle = require('monocle'),
   jshint = require('gulp-jshint'),
@@ -27,7 +28,6 @@ var gulp = require('gulp'),
   minifyCss = require('gulp-minify-css'),
   minifyHtml = require('gulp-minify-html'),
   hashSrc = require('gulp-hash-src'),
-  handlebars = require('gulp-static-handlebars'),
   uglify = require('gulp-uglify'),
   gulpif = require('gulp-if'),
   del = require('del'),
@@ -36,7 +36,8 @@ var gulp = require('gulp'),
   qunit = require('./gulp/qunit'),
   deploy = require('gulp-gh-pages'),
   merge = require('merge-stream'),
-  sourcemaps = require('gulp-sourcemaps');
+  sourcemaps = require('gulp-sourcemaps'),
+  addsrc = require('gulp-add-src');
 
 // srcDir is the source directory
 var srcDir = './src',
@@ -49,6 +50,7 @@ var src = {
   images:  srcDir + '/img/**/*',
   fonts:   srcDir + '/fonts/**/*',
   html:    srcDir + '/**/*.html',
+  ejs:     [srcDir + '/**/*.ejs', '!' + srcDir + '/**/_*.ejs'],
   tests:   './test/**/*',
   vendorScripts: srcDir + '/js/vendor/**/*.js'
 };
@@ -120,16 +122,23 @@ function buildCss(options) {
 // html moves html files to the /dest directory and
 // injects JS into them using gulp-inject
 gulp.task('html', function() {
-  return gulp.src(src.html)
-    .pipe(gulp.dest(dest.html))
-    .pipe(connect.reload());
+  return buildHtml();
 });
 
 gulp.task('html:release', ['css:release', 'js:release'], function () {
-  return gulp.src(src.html)
-    .pipe(minifyHtml())
-    .pipe(gulp.dest(dest.html));
+  return buildHtml({ minify: true });
 });
+
+function buildHtml(options) {
+  options = options || {};
+
+  return gulp.src(src.ejs)
+    .pipe(ejs({ scope: { } }))
+    .pipe(addsrc(src.html))
+    .pipe(gulpif(options.minify, minifyHtml()))
+    .pipe(gulp.dest(dest.html))
+    .pipe(connect.reload());
+}
 
 
 // bust-cache hashes urls
@@ -163,7 +172,7 @@ gulp.task('watch', function () {
       when: '+(fonts|img)/**',
       then: gulpStart('assets')
     }, {
-      when: '*.html',
+      when: '*.+(html|ejs)',
       then: gulpStart('html')
     }]
   });

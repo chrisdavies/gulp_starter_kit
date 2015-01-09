@@ -30,10 +30,31 @@ If you need a new bundle, edit /gulp/script-definitions.js and add a new bundle.
 
 If you need to modify the ordering of scripts in existing bundles, edit their definition in /gulp/script-definitions.js
 
+## EJS Templates
+
+EJS templates are supported at build time. Partials should start with an _, so
+the build system doesn't copy them to the destination folder.
+
+EJS files should end with .ejs. There is a global "scope" property which you
+can use to send values to partials.
+
+For example, given the file /src/index.ejs:
+
+    <% scope.user = { name: 'Chris' } %>
+    <% include partials/_sayhi %>
+
+The partial /src/partials/_sayhi.ejs might look like this:
+
+    <p>Hello, <%= scope.user.name %></p>
+
+That's about it!
+
 ## Minification Bug
 
-When JavaScript is uglified, source maps stop working.
+When JavaScript is uglified, source maps stop working. Alas, you can't have
+everything...
 
 ## TODO
 
-* Add support for build-time templates
+Don't build everything when a file changes... See if a more optimal watch/bulid
+cycle can be devised.
