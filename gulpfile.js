@@ -140,12 +140,14 @@ gulp.task('html:release', ['css:release', 'js:release'], function () {
     .pipe(gulp.dest(dest.html));
 });
 
+
 // bust-cache hashes urls
 gulp.task('bust-cache', ['html:release'], function () {
   return gulp.src(destDir + '/**.*html')
     .pipe(hashSrc({ build_dir: destDir, src_path: srcDir }))
     .pipe(gulp.dest(destDir));
 });
+
 
 // watch watches the /src directory for changes and
 // launches the appropriate task
@@ -177,16 +179,14 @@ gulp.task('js:release', function () {
 });
 
 function bulidJs(postProcessing) {
-  var scriptDefinitions = require('./gulp/script-definitions');
-  var isVendorScript = { 'vendor': true };
-  var scriptNames = Object.keys(scriptDefinitions);
+  var scriptDefinitions = require('./gulp/script-definitions'),
+      scriptNames = Object.keys(scriptDefinitions),
+      appScriptNames = scriptNames.filter(function (scriptName) {
+        return scriptName !== 'vendor';
+      });
 
   // Grab app scripts, concat, etc
-  var appScripts = merge(scriptNames
-    .filter(function (scriptName) {
-      return !isVendorScript[scriptName];
-    })
-    .map(function (scriptName) {
+  var result = merge(appScriptNames.map(function (scriptName) {
       var stream = gulp.src(scriptDefinitions[scriptName])
         .pipe(jshint())
         .pipe(jshint.reporter(''))
@@ -201,19 +201,14 @@ function bulidJs(postProcessing) {
       return stream;
     }));
 
-  // Grab vendor scripts and concat them
-  var vendorScripts = merge(scriptNames
-    .filter(function (scriptName) {
-      return isVendorScript[scriptName];
-    })
-    .map(function (scriptName) {
-      return gulp.src(scriptDefinitions[scriptName])
-        .pipe(concat(scriptName + '.js'));
-    }));
+  // Grab vendor scripts and concat them, if any exist
+  if (scriptDefinitions.vendor && scriptDefinitions.vendor.length) {
+    result = merge(result, gulp.src(scriptDefinitions.vendor)
+      .pipe(concat('vendor.js')));
+  }
 
   // Merge vendor and app scripts into one stream
-  return merge(appScripts, vendorScripts)
-    .pipe(gulp.dest(dest.scripts));
+  return result.pipe(gulp.dest(dest.scripts));
 }
 
 
@@ -242,7 +237,13 @@ gulp.task('img', function () {
 
 
 // deploy pushes the contents of dist to gh-pages
-gulp.task('deploy', function () {
+gulp.task('deploy', ['clean'], function () {
+  return gulp.start('assets', 'html:release', 'bust-cache', 'push-gh-pages');
+});
+
+
+// deploy /dest to github pages
+gulp.task('push-gh-pages', ['assets', 'html:release', 'bust-cache'], function () {
   return gulp.src(destDir + '/**/*')
     .pipe(deploy());
 });
