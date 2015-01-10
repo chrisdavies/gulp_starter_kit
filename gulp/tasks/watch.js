@@ -19,7 +19,7 @@ gulp.task('watch', function () {
       when: '+(fonts|img)/**',
       then: gulpStart('assets')
     }, {
-      when: '*.+(html|ejs)',
+      when: '**/*.+(html|ejs)',
       then: gulpStart('html')
     }]
   });
