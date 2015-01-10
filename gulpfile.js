@@ -1,22 +1,3 @@
-/*
-  The gulp build process is as follows:
-
-  "gulp" runs in debug mode and serves out of the
-  "build" directory
-
-  "gulp release" creates an optimized build in the
-  "release" directory
-
-  "gulp release --minonly" same as "gulp release" except
-  that it expects all sources to be referenced via gulp-usemin
-  references, so it doesn't copy js or css to the "release"
-  directory.
-
-  "gulp test" runs all qunit tests in the test directory
-
-  "gulp watchTests" run tests any time any tests change
-*/
-
 // Load plugins
 var gulp = require('gulp'),
   ejs = require('gulp-ejs'),
@@ -64,6 +45,12 @@ var dest = {
   html:    destDir
 };
 
+// A helper function to create a callback that runs a gulp task
+function gulpStart(task) {
+  return function () {
+    gulp.start(task);
+  }
+}
 
 // default builds, serves, and watches /src into /dist
 gulp.task('default', ['build:dev', 'serve', 'watch']);
@@ -78,10 +65,25 @@ gulp.task('test', function(done) {
   qunit(glob.sync(src.tests + '.html'), done);
 });
 
-
 // test:watch runs tests continually as js files change
 gulp.task('test:watch', ['test'], function() {
-  gulp.watch([src.tests, src.scripts], ['test']);
+  var watch = require('./gulp/watch');
+
+  watch({
+    root: 'src/js',
+    match: [{
+      when: '*.js',
+      then: gulpStart('test')
+    }]
+  });
+
+  watch({
+    root: 'test',
+    match: [{
+      when: '*',
+      then: gulpStart('test')
+    }]
+  });
 });
 
 
@@ -153,12 +155,6 @@ gulp.task('bust-cache', ['html:release'], function () {
 // launches the appropriate task
 gulp.task('watch', function () {
   var watch = require('./gulp/watch');
-
-  function gulpStart(task) {
-    return function () {
-      gulp.start(task);
-    }
-  }
 
   watch({
     root: srcDir,
