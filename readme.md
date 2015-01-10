@@ -6,6 +6,10 @@ Running "gulp" will compile the site found in "src" and deploy it to a folder ca
 
 Running "gulp release" will minify JavaScript, CSS, and HTML, and bust caches.
 
+gulp test will continuously run all qunit tests in the /test directory
+
+gulp deploy will build a release build and push it to the gh-pages branch
+
 ## Getting Started
 
 To get started, clone this repo, and modify/delete/add sources in the src folder to suit your needs.
@@ -16,9 +20,11 @@ Run "gulp" to launch the site in debug mode.
 
 Out of the box, any scripts in /src/js/vendor will be bundled into /dest/js/vendor.js
 
-And all other scripts will be bundled into /dest/js/app.js
+Vendor is a special name, and will not minify; only concat.
 
-If you need a new bundle, edit /gulp/script-definitions.js and add a new bundle.
+All other scripts will be bundled into /dest/js/app.js
+
+If you need a new bundle, or want to get rid of/change app.js, edit /gulp/script-definitions.js and add a new bundle.
 
     // This is where any explicit script odering should
     // be declared.

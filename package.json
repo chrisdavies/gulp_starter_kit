@@ -21,6 +21,7 @@
     "merge-stream": "^0.1.6",
     "minimatch": "^2.0.1",
     "monocle": "^1.1.51",
+    "require-dir": "^0.1.0",
     "zombie": "^2.5.1"
   }
 }
