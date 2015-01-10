@@ -1,0 +1,1 @@
+{"version":3,"sources":["example.js"],"names":[],"mappings":"AACA,SAAA,KAAA,mBAAA,YAAA","file":"app.js","sourcesContent":["// This is just an example. Remove it and add your own js to the /js folder!\ndocument.body.insertAdjacentHTML('beforeend', '<h1>TODO: Remove example.js</h1>');\n"],"sourceRoot":"/source/"}
