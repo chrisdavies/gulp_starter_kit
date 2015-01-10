@@ -112,6 +112,10 @@ function buildCss(options) {
 
   return gulp.src(src.sass)
     .pipe(sass())
+    .on('error', function(err){
+      console.log(err);
+      this.emit('end');
+    })
     .pipe(autoprefixer({
       browsers: ['last 2 versions'],
       cascade: false
