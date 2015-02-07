@@ -3,19 +3,20 @@
 // // srcDir is the source directory
 
 var srcDir = './src',
-    destDir = './dist';
+    destDir = './dist',
+    bowerDir = './bower_components';
 
 // src holds the values of source folders
 var src = {
   root:     srcDir,
+  vendorRoot: bowerDir,
   css:      srcDir + '/css/**/*.scss',
   js:       srcDir + '/js/**/*.js',
   img:      srcDir + '/img/**/*',
   fonts:    srcDir + '/fonts/**/*',
   html:     srcDir + '/**/*.html',
   ejs:      [srcDir + '/**/*.ejs', '!' + srcDir + '/**/_*.ejs'],
-  tests:    './test/**/*',
-  vendorJs: srcDir + '/js/vendor/**/*.js'
+  tests:    './test/**/*'
 };
 
 // dest holds the values of desination folders
@@ -28,6 +29,8 @@ var dest = {
   html:     destDir
 };
 
+// Export our src and dest configurations so they can
+// be used in our gulp tasks
 module.exports = {
   src: src,
   dest: dest

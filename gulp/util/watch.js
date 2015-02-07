@@ -8,7 +8,8 @@
 module.exports = function (options) {
   var path = require('path'),
       monocle = require('monocle'),
-      minimatch = require('minimatch');
+      minimatch = require('minimatch'),
+      fs = require('fs');
 
   var fullRoot = path.resolve(options.root);
 
@@ -21,6 +22,10 @@ module.exports = function (options) {
       return isMatch;
     });
   }
+
+  fs.mkdir(fullRoot, function () {
+    // We don't really care about this callback, but it is required.
+  });
 
   monocle().watchDirectory({
     root: options.root,

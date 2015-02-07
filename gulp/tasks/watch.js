@@ -8,6 +8,14 @@ var gulp = require('gulp'),
 
 gulp.task('watch', function () {
   watch({
+    root: config.src.vendorRoot,
+    match: [{
+      when: '*.js',
+      then: gulpStart('js')
+    }]
+  });
+
+  watch({
     root: config.src.root,
     match: [{
       when: 'js/**',
