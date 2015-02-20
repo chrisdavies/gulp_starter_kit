@@ -48,7 +48,9 @@ function buildJs(options) {
   // Grab vendor scripts and concat them, if any exist
   if (scriptDefinitions.vendor && scriptDefinitions.vendor.length) {
     result = merge(result, gulp.src(scriptDefinitions.vendor)
-      .pipe(concat('vendor.js')));
+      .pipe(sourcemaps.init({ loadMaps: true }))
+      .pipe(concat('vendor.js'))
+      .pipe(sourcemaps.write('./')));
   }
 
   // Merge vendor and app scripts into one stream
